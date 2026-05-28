@@ -10,7 +10,7 @@
 
     <div class="form-card">
         <div class="profile-avatar-section">
-            @if(auth()->user()->avatar)
+            @if(auth()->user()->avatar && file_exists(storage_path('app/public/' . auth()->user()->avatar)))
                 <img src="{{ asset('storage/' . auth()->user()->avatar) }}" class="profile-avatar" alt="">
             @else
                 <div class="profile-avatar-placeholder">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>

@@ -25,13 +25,13 @@ class ClassroomController extends Controller
 
     public function create()
     {
-        $this->authorize('create', Classroom::class);
+        if (!Auth::user()->isTeacher() && !Auth::user()->isAdmin()) abort(403);
         return view('classes.create');
     }
 
     public function store(Request $request)
     {
-        $this->authorize('create', Classroom::class);
+        if (!Auth::user()->isTeacher() && !Auth::user()->isAdmin()) abort(403);
 
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:100'],
@@ -58,13 +58,13 @@ class ClassroomController extends Controller
 
     public function edit(Classroom $classroom)
     {
-        $this->authorize('update', $classroom);
+        if (!Auth::user()->isAdmin() && $classroom->teacher_id !== Auth::id()) abort(403);
         return view('classes.edit', compact('classroom'));
     }
 
     public function update(Request $request, Classroom $classroom)
     {
-        $this->authorize('update', $classroom);
+        if (!Auth::user()->isAdmin() && $classroom->teacher_id !== Auth::id()) abort(403);
 
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:100'],
@@ -75,6 +75,13 @@ class ClassroomController extends Controller
         $classroom->update($data);
 
         return redirect()->route('classes.show', $classroom)->with('success', 'Class updated.');
+    }
+
+    public function destroy(Classroom $classroom)
+    {
+        if (!Auth::user()->isAdmin()) abort(403);
+        $classroom->delete();
+        return redirect()->route('classes.index')->with('success', 'Class deleted.');
     }
 
     public function join(Request $request)
@@ -103,9 +110,7 @@ class ClassroomController extends Controller
         $user = Auth::user();
 
         if ($user->isAdmin()) return;
-
         if ($user->isTeacher() && $classroom->teacher_id === $user->id) return;
-
         if ($user->isStudent() && $classroom->students()->where('user_id', $user->id)->exists()) return;
 
         abort(403);

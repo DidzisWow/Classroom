@@ -9,7 +9,6 @@ use App\Models\Submission;
 use App\Models\SubmissionFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class AssignmentController extends Controller
 {
@@ -17,7 +16,6 @@ class AssignmentController extends Controller
     {
         $class = Classroom::findOrFail($request->query('class_id'));
         $this->authorizeTeacher($class);
-
         return view('assignments.create', compact('class'));
     }
 
@@ -37,7 +35,6 @@ class AssignmentController extends Controller
 
         $assignment = Assignment::create($data);
 
-        // Attach teacher files
         if ($request->hasFile('files')) {
             foreach ($request->file('files') as $file) {
                 $path = $file->store('assignments/' . $assignment->id, 'public');
@@ -58,6 +55,14 @@ class AssignmentController extends Controller
     {
         $assignment->load(['classroom.teacher', 'files', 'submissions.files', 'submissions.user']);
         return view('assignments.show', compact('assignment'));
+    }
+
+    public function destroy(Assignment $assignment)
+    {
+        $user = Auth::user();
+        if (!$user->isAdmin() && $assignment->classroom->teacher_id !== $user->id) abort(403);
+        $assignment->delete();
+        return redirect()->route('classes.show', $assignment->classroom)->with('success', 'Assignment deleted.');
     }
 
     public function submit(Request $request, Assignment $assignment)

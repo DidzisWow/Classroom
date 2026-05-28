@@ -11,16 +11,10 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            if (!Auth::user()?->isAdmin()) abort(403);
-            return $next($request);
-        });
-    }
-
     public function index()
     {
+        if (!Auth::user()?->isAdmin()) abort(403);
+
         $users = User::latest()->paginate(20);
 
         $stats = [
@@ -37,6 +31,8 @@ class AdminController extends Controller
 
     public function updateRole(Request $request, User $user)
     {
+        if (!Auth::user()?->isAdmin()) abort(403);
+
         $request->validate([
             'role' => ['required', 'in:student,teacher,admin'],
         ]);
@@ -54,6 +50,8 @@ class AdminController extends Controller
 
     public function resetPassword(User $user)
     {
+        if (!Auth::user()?->isAdmin()) abort(403);
+
         $newPassword = 'ClassNova@123';
         $user->update(['password' => Hash::make($newPassword)]);
 

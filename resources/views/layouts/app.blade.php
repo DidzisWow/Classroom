@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script>
+        const t = localStorage.getItem('cn_theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+    </script>
     <title>@yield('title', 'ClassNova')</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
@@ -31,8 +35,8 @@
             <button class="theme-toggle" id="themeToggle" title="Toggle theme">
                 <span class="theme-icon">◐</span>
             </button>
-            <div class="nav-user">
-                @if(auth()->user()->avatar)
+            <div class="nav-user" id="userMenu">
+                @if(auth()->user()->avatar && file_exists(storage_path('app/public/' . auth()->user()->avatar)))
                     <img src="{{ asset('storage/' . auth()->user()->avatar) }}" class="user-avatar" alt="">
                 @else
                     <div class="user-avatar-placeholder">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>

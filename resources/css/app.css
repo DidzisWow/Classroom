@@ -1434,3 +1434,23 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; }
     .nav-center { display: none; }
     .stats-row { grid-template-columns: 1fr 1fr; }
 }
+
+.btn-danger {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 20px;
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all var(--transition);
+    cursor: pointer;
+    font-family: var(--font-body);
+}
+
+.btn-danger:hover {
+    background: rgba(248, 113, 113, 0.2);
+    border-color: #f87171;
+}

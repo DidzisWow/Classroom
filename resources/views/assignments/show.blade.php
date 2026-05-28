@@ -10,7 +10,6 @@
 
     <div class="assignment-layout">
 
-        {{-- Main --}}
         <div class="assignment-main">
 
             <div class="assignment-card">
@@ -23,6 +22,13 @@
                             Due {{ \Carbon\Carbon::parse($assignment->due_date)->format('D, M j') }}
                         </div>
                     @endif
+                    @if(auth()->user()->role === 'admin' || (auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->teacher_id))
+                        <form method="POST" action="{{ route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Delete this assignment?')" style="margin-left:auto">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-danger btn-sm">Delete</button>
+                        </form>
+                    @endif
                 </div>
                 <h1 class="assignment-title">{{ $assignment->title }}</h1>
                 <p class="assignment-posted">Posted by {{ $assignment->classroom->teacher->name }} · {{ $assignment->created_at->format('M j, Y') }}</p>
@@ -31,7 +37,6 @@
                     <div class="assignment-body">{{ $assignment->description }}</div>
                 @endif
 
-                {{-- Attached files by teacher --}}
                 @if($assignment->files->where('user_id', $assignment->classroom->teacher_id)->count())
                     <div class="file-list">
                         <h4>Attached Files</h4>
@@ -46,7 +51,6 @@
                 @endif
             </div>
 
-            {{-- Comments --}}
             <div class="comments-section">
                 <h3 class="comments-title">Comments</h3>
 
@@ -83,7 +87,6 @@
 
         </div>
 
-        {{-- Submission sidebar --}}
         @if(auth()->user()->role === 'student')
         <aside class="assignment-sidebar">
             <div class="sidebar-card submission-card">
@@ -128,7 +131,6 @@
         </aside>
         @endif
 
-        {{-- Teacher: grade submissions --}}
         @if((auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->teacher_id) || auth()->user()->role === 'admin')
         <aside class="assignment-sidebar">
             <div class="sidebar-card">

@@ -34,6 +34,10 @@ class ProfileController extends Controller
         }
 
         if ($request->hasFile('avatar')) {
+            // Delete old avatar if exists
+            if ($user->avatar && file_exists(storage_path('app/public/' . $user->avatar))) {
+                unlink(storage_path('app/public/' . $user->avatar));
+            }
             $path = $request->file('avatar')->store('avatars', 'public');
             $user->avatar = $path;
         }
