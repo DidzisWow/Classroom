@@ -35,6 +35,19 @@
             </div>
 
             <div class="form-group">
+                <label for="assigned_teacher_id">Assign Teacher</label>
+                <select id="assigned_teacher_id" name="assigned_teacher_id">
+                    <option value="">— No teacher assigned —</option>
+                    @foreach($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" {{ old('assigned_teacher_id', $classroom->assigned_teacher_id) == $teacher->id ? 'selected' : '' }}>
+                            {{ $teacher->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('assigned_teacher_id') <span class="error-msg">{{ $message }}</span> @enderror
+            </div>
+
+            <div class="form-group">
                 <label>Accent Color</label>
                 <div class="color-picker">
                     @foreach(['#00e5ff','#a78bfa','#34d399','#f59e0b','#f87171','#60a5fa'] as $color)

@@ -31,13 +31,21 @@
 
             <div class="form-group">
                 <label for="description">Description <span class="label-opt">(optional)</span></label>
-                <textarea
-                    id="description"
-                    name="description"
-                    rows="3"
-                    placeholder="What will students learn?"
-                >{{ old('description') }}</textarea>
+                <textarea id="description" name="description" rows="3" placeholder="What will students learn?">{{ old('description') }}</textarea>
                 @error('description') <span class="error-msg">{{ $message }}</span> @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="assigned_teacher_id">Assign Teacher <span class="label-opt">(optional)</span></label>
+                <select id="assigned_teacher_id" name="assigned_teacher_id">
+                    <option value="">— No teacher assigned —</option>
+                    @foreach($teachers as $teacher)
+                        <option value="{{ $teacher->id }}" {{ old('assigned_teacher_id') == $teacher->id ? 'selected' : '' }}>
+                            {{ $teacher->name }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('assigned_teacher_id') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
             <div class="form-group">

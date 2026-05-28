@@ -13,11 +13,14 @@ class ClassroomController extends Controller
         $user = Auth::user();
 
         if ($user->isAdmin()) {
-            $classes = Classroom::with('teacher')->withCount(['students', 'assignments'])->latest()->get();
+            $classes = Classroom::with('teacher', 'assignedTeacher')->withCount(['students', 'assignments'])->latest()->get();
         } elseif ($user->isTeacher()) {
-            $classes = $user->teachingClasses()->withCount(['students', 'assignments'])->latest()->get();
+            $classes = Classroom::with('teacher', 'assignedTeacher')
+                ->where('assigned_teacher_id', $user->id)
+                ->withCount(['students', 'assignments'])
+                ->latest()->get();
         } else {
-            $classes = $user->enrolledClasses()->with('teacher')->withCount(['students', 'assignments'])->latest()->get();
+            $classes = $user->enrolledClasses()->with('teacher', 'assignedTeacher')->withCount(['students', 'assignments'])->latest()->get();
         }
 
         return view('classes.index', compact('classes'));
@@ -25,51 +28,53 @@ class ClassroomController extends Controller
 
     public function create()
     {
-        if (!Auth::user()->isTeacher() && !Auth::user()->isAdmin()) abort(403);
-        return view('classes.create');
+        if (!Auth::user()->isAdmin()) abort(403);
+        $teachers = \App\Models\User::where('role', 'teacher')->get();
+        return view('classes.create', compact('teachers'));
     }
 
     public function store(Request $request)
     {
-        if (!Auth::user()->isTeacher() && !Auth::user()->isAdmin()) abort(403);
+        if (!Auth::user()->isAdmin()) abort(403);
 
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'color'       => ['nullable', 'string', 'max:20'],
+            'name'                => ['required', 'string', 'max:100'],
+            'description'         => ['nullable', 'string', 'max:500'],
+            'color'               => ['nullable', 'string', 'max:20'],
+            'assigned_teacher_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        $class = Classroom::create([
+        Classroom::create([
             ...$data,
             'teacher_id' => Auth::id(),
         ]);
 
-        return redirect()->route('classes.show', $class)->with('success', 'Class created successfully!');
+        return redirect()->route('classes.index')->with('success', 'Class created successfully!');
     }
 
     public function show(Classroom $classroom)
     {
         $this->authorizeView($classroom);
-
         $assignments = $classroom->assignments()->with(['files', 'submissions'])->get();
-
         return view('classes.show', compact('classroom', 'assignments'));
     }
 
     public function edit(Classroom $classroom)
     {
-        if (!Auth::user()->isAdmin() && $classroom->teacher_id !== Auth::id()) abort(403);
-        return view('classes.edit', compact('classroom'));
+        if (!Auth::user()->isAdmin()) abort(403);
+        $teachers = \App\Models\User::where('role', 'teacher')->get();
+        return view('classes.edit', compact('classroom', 'teachers'));
     }
 
     public function update(Request $request, Classroom $classroom)
     {
-        if (!Auth::user()->isAdmin() && $classroom->teacher_id !== Auth::id()) abort(403);
+        if (!Auth::user()->isAdmin()) abort(403);
 
         $data = $request->validate([
-            'name'        => ['required', 'string', 'max:100'],
-            'description' => ['nullable', 'string', 'max:500'],
-            'color'       => ['nullable', 'string', 'max:20'],
+            'name'                => ['required', 'string', 'max:100'],
+            'description'         => ['nullable', 'string', 'max:500'],
+            'color'               => ['nullable', 'string', 'max:20'],
+            'assigned_teacher_id' => ['nullable', 'exists:users,id'],
         ]);
 
         $classroom->update($data);
@@ -110,7 +115,7 @@ class ClassroomController extends Controller
         $user = Auth::user();
 
         if ($user->isAdmin()) return;
-        if ($user->isTeacher() && $classroom->teacher_id === $user->id) return;
+        if ($user->isTeacher() && $classroom->assigned_teacher_id === $user->id) return;
         if ($user->isStudent() && $classroom->students()->where('user_id', $user->id)->exists()) return;
 
         abort(403);

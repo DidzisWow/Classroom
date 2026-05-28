@@ -11,7 +11,6 @@
         </div>
     </div>
 
-    {{-- Stats Row --}}
     <div class="stats-row">
         <div class="stat-card">
             <div class="stat-value">{{ $stats['classes'] }}</div>
@@ -39,7 +38,6 @@
 
     <div class="dash-grid">
 
-        {{-- Recent Classes --}}
         <section class="dash-section">
             <div class="section-head">
                 <h2 class="section-title">My Classes</h2>
@@ -50,10 +48,17 @@
                 <div class="empty-state">
                     <div class="empty-icon">⬡</div>
                     <p>No classes yet.</p>
-                    @if(auth()->user()->role === 'teacher')
-                        <a href="{{ route('classes.create') }}" class="btn-primary">Create a Class</a>
+                    @if(auth()->user()->role === 'admin')
+                        <a href="{{ route('classes.create') }}" class="btn-primary">Add Class</a>
+                    @elseif(auth()->user()->role === 'teacher')
+                        <p class="empty-hint">You haven't been assigned to any classes yet. Contact your admin.</p>
                     @else
-                        <p class="empty-hint">Ask your teacher for a class code.</p>
+                        <form method="POST" action="{{ route('classes.join') }}" style="display:flex;gap:8px;margin-top:8px">
+                            @csrf
+                            <input type="text" name="code" placeholder="Enter class code" style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-3);color:var(--text);font-family:var(--font-body);outline:none;">
+                            <button type="submit" class="btn-primary">Join</button>
+                        </form>
+                        @error('code') <span class="error-msg">{{ $message }}</span> @enderror
                     @endif
                 </div>
             @else
@@ -63,7 +68,7 @@
                             <div class="class-card-accent" style="background: {{ $class->color ?? '#00e5ff' }}"></div>
                             <div class="class-card-body">
                                 <h3 class="class-card-name">{{ $class->name }}</h3>
-                                <p class="class-card-teacher">{{ $class->teacher->name ?? 'Unknown' }}</p>
+                                <p class="class-card-teacher">{{ $class->assignedTeacher->name ?? $class->teacher->name ?? 'Unknown' }}</p>
                                 <div class="class-card-meta">
                                     <span>{{ $class->assignments_count ?? 0 }} assignments</span>
                                 </div>
@@ -74,7 +79,6 @@
             @endif
         </section>
 
-        {{-- Recent Activity --}}
         <section class="dash-section">
             <div class="section-head">
                 <h2 class="section-title">Recent Activity</h2>

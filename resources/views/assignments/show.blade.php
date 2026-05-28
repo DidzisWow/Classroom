@@ -22,7 +22,7 @@
                             Due {{ \Carbon\Carbon::parse($assignment->due_date)->format('D, M j') }}
                         </div>
                     @endif
-                    @if(auth()->user()->role === 'admin' || (auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->teacher_id))
+                    @if(auth()->user()->role === 'admin' || (auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->assigned_teacher_id))
                         <form method="POST" action="{{ route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Delete this assignment?')" style="margin-left:auto">
                             @csrf
                             @method('DELETE')
@@ -31,16 +31,16 @@
                     @endif
                 </div>
                 <h1 class="assignment-title">{{ $assignment->title }}</h1>
-                <p class="assignment-posted">Posted by {{ $assignment->classroom->teacher->name }} · {{ $assignment->created_at->format('M j, Y') }}</p>
+                <p class="assignment-posted">Posted by {{ $assignment->classroom->assignedTeacher->name ?? $assignment->classroom->teacher->name }} · {{ $assignment->created_at->format('M j, Y') }}</p>
 
                 @if($assignment->description)
                     <div class="assignment-body">{{ $assignment->description }}</div>
                 @endif
 
-                @if($assignment->files->where('user_id', $assignment->classroom->teacher_id)->count())
+                @if($assignment->files->where('user_id', $assignment->classroom->assigned_teacher_id ?? $assignment->classroom->teacher_id)->count())
                     <div class="file-list">
                         <h4>Attached Files</h4>
-                        @foreach($assignment->files->where('user_id', $assignment->classroom->teacher_id) as $file)
+                        @foreach($assignment->files->where('user_id', $assignment->classroom->assigned_teacher_id ?? $assignment->classroom->teacher_id) as $file)
                             <a href="{{ asset('storage/' . $file->path) }}" class="file-item" target="_blank">
                                 <span class="file-icon">◧</span>
                                 <span class="file-name">{{ $file->original_name }}</span>
@@ -56,7 +56,7 @@
 
                 @foreach($assignment->comments()->with('user')->latest()->get() as $comment)
                     <div class="comment">
-                        @if($comment->user->avatar)
+                        @if($comment->user->avatar && file_exists(storage_path('app/public/' . $comment->user->avatar)))
                             <img src="{{ asset('storage/' . $comment->user->avatar) }}" class="comment-avatar" alt="">
                         @else
                             <div class="comment-avatar-placeholder">{{ strtoupper(substr($comment->user->name, 0, 1)) }}</div>
@@ -74,7 +74,7 @@
                 <form method="POST" action="{{ route('comments.store', $assignment) }}" class="comment-form">
                     @csrf
                     <div class="comment-input-row">
-                        @if(auth()->user()->avatar)
+                        @if(auth()->user()->avatar && file_exists(storage_path('app/public/' . auth()->user()->avatar)))
                             <img src="{{ asset('storage/' . auth()->user()->avatar) }}" class="comment-avatar" alt="">
                         @else
                             <div class="comment-avatar-placeholder">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
@@ -131,7 +131,7 @@
         </aside>
         @endif
 
-        @if((auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->teacher_id) || auth()->user()->role === 'admin')
+        @if(auth()->user()->role === 'admin' || (auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->assigned_teacher_id))
         <aside class="assignment-sidebar">
             <div class="sidebar-card">
                 <h3>Submissions <span class="count-badge">{{ $assignment->submissions->count() }}</span></h3>

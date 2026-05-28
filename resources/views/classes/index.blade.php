@@ -10,9 +10,9 @@
             <p class="page-sub">All your enrolled and created classes</p>
         </div>
         <div class="page-actions">
-            @if(auth()->user()->role === 'teacher' || auth()->user()->role === 'admin')
+            @if(auth()->user()->role === 'admin')
                 <a href="{{ route('classes.create') }}" class="btn-primary">+ New Class</a>
-            @else
+            @elseif(auth()->user()->role === 'student')
                 <button class="btn-secondary" onclick="document.getElementById('joinModal').classList.add('open')">Join Class</button>
             @endif
         </div>
@@ -21,11 +21,15 @@
     @if($classes->isEmpty())
         <div class="empty-state full">
             <div class="empty-icon">⬡</div>
-            <h3>No classes found</h3>
-            @if(auth()->user()->role === 'teacher')
+            @if(auth()->user()->role === 'admin')
+                <h3>No classes found</h3>
                 <p>Create your first class to get started.</p>
-                <a href="{{ route('classes.create') }}" class="btn-primary">Create Class</a>
+                <a href="{{ route('classes.create') }}" class="btn-primary">Add Class</a>
+            @elseif(auth()->user()->role === 'teacher')
+                <h3>No classes assigned</h3>
+                <p>You haven't been assigned to any classes yet. Contact your admin.</p>
             @else
+                <h3>No classes found</h3>
                 <p>Ask your teacher for a class invite code.</p>
             @endif
         </div>
@@ -39,7 +43,7 @@
                     </div>
                     <div class="class-tile-body">
                         <h3>{{ $class->name }}</h3>
-                        <p>{{ $class->teacher->name ?? 'Unknown teacher' }}</p>
+                        <p>{{ $class->assignedTeacher->name ?? $class->teacher->name ?? 'Unknown teacher' }}</p>
                         <div class="class-tile-meta">
                             <span>{{ $class->students_count }} students</span>
                             <span>{{ $class->assignments_count }} tasks</span>
@@ -52,7 +56,6 @@
 
 </div>
 
-{{-- Join Modal (students only) --}}
 @if(auth()->user()->role === 'student')
 <div class="modal-backdrop" id="joinModal">
     <div class="modal">

@@ -53,14 +53,14 @@ class AssignmentController extends Controller
 
     public function show(Assignment $assignment)
     {
-        $assignment->load(['classroom.teacher', 'files', 'submissions.files', 'submissions.user']);
+        $assignment->load(['classroom.teacher', 'classroom.assignedTeacher', 'files', 'submissions.files', 'submissions.user']);
         return view('assignments.show', compact('assignment'));
     }
 
     public function destroy(Assignment $assignment)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $assignment->classroom->teacher_id !== $user->id) abort(403);
+        if (!$user->isAdmin() && $assignment->classroom->assigned_teacher_id !== $user->id) abort(403);
         $assignment->delete();
         return redirect()->route('classes.show', $assignment->classroom)->with('success', 'Assignment deleted.');
     }
@@ -93,7 +93,7 @@ class AssignmentController extends Controller
     private function authorizeTeacher(Classroom $class): void
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && (!$user->isTeacher() || $class->teacher_id !== $user->id)) {
+        if (!$user->isAdmin() && (!$user->isTeacher() || $class->assigned_teacher_id !== $user->id)) {
             abort(403);
         }
     }
