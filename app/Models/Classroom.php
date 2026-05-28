@@ -16,6 +16,7 @@ class Classroom extends Model
         'color',
         'code',
         'teacher_id',
+        'assigned_teacher_id',
     ];
 
     protected static function boot()
@@ -30,6 +31,11 @@ class Classroom extends Model
     public function teacher()
     {
         return $this->belongsTo(User::class, 'teacher_id');
+    }
+
+    public function assignedTeacher()
+    {
+        return $this->belongsTo(User::class, 'assigned_teacher_id');
     }
 
     public function students()
