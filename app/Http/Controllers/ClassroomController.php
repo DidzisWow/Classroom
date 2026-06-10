@@ -5,22 +5,41 @@ namespace App\Http\Controllers;
 use App\Models\Classroom;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ClassroomController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
+        
+        // Debug: ieraksta logā skolotāja ID
+        if ($user->isTeacher()) {
+            Log::info('Teacher ID: ' . $user->id);
+        }
 
         if ($user->isAdmin()) {
-            $classes = Classroom::with('teacher', 'assignedTeacher')->withCount(['students', 'assignments'])->latest()->get();
+            $classes = Classroom::with('teacher', 'assignedTeacher')
+                ->withCount(['students', 'assignments'])
+                ->latest()
+                ->get();
         } elseif ($user->isTeacher()) {
+            // Skolotājs redz klases, kur viņš ir assigned_teacher_id VAI teacher_id
             $classes = Classroom::with('teacher', 'assignedTeacher')
                 ->where('assigned_teacher_id', $user->id)
+                ->orWhere('teacher_id', $user->id)
                 ->withCount(['students', 'assignments'])
-                ->latest()->get();
+                ->latest()
+                ->get();
+            
+            // Debug: ieraksta logā atrasto klašu skaitu
+            Log::info('Classes found for teacher: ' . $classes->count());
         } else {
-            $classes = $user->enrolledClasses()->with('teacher', 'assignedTeacher')->withCount(['students', 'assignments'])->latest()->get();
+            $classes = $user->enrolledClasses()
+                ->with('teacher', 'assignedTeacher')
+                ->withCount(['students', 'assignments'])
+                ->latest()
+                ->get();
         }
 
         return view('classes.index', compact('classes'));
@@ -28,14 +47,21 @@ class ClassroomController extends Controller
 
     public function create()
     {
-        if (!Auth::user()->isAdmin()) abort(403);
+        $user = Auth::user();
+        if (!$user->isTeacher() && !$user->isAdmin()) {
+            abort(403, 'Only teachers and admins can create classes.');
+        }
+        
         $teachers = \App\Models\User::where('role', 'teacher')->get();
         return view('classes.create', compact('teachers'));
     }
 
     public function store(Request $request)
     {
-        if (!Auth::user()->isAdmin()) abort(403);
+        $user = Auth::user();
+        if (!$user->isTeacher() && !$user->isAdmin()) {
+            abort(403, 'Only teachers and admins can create classes.');
+        }
 
         $data = $request->validate([
             'name'                => ['required', 'string', 'max:100'],
@@ -44,31 +70,61 @@ class ClassroomController extends Controller
             'assigned_teacher_id' => ['nullable', 'exists:users,id'],
         ]);
 
-        Classroom::create([
-            ...$data,
-            'teacher_id' => Auth::id(),
+        // Ja lietotājs ir skolotājs un nav norādīts assigned_teacher_id, piešķir sevi
+        if ($user->isTeacher() && empty($data['assigned_teacher_id'])) {
+            $data['assigned_teacher_id'] = $user->id;
+        }
+        
+        // Ja lietotājs ir admin un nav norādīts assigned_teacher_id, liek NULL
+        if ($user->isAdmin() && empty($data['assigned_teacher_id'])) {
+            $data['assigned_teacher_id'] = null;
+        }
+
+        $classroom = Classroom::create([
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'color' => $data['color'] ?? '#00e5ff',
+            'teacher_id' => $user->id,
+            'assigned_teacher_id' => $data['assigned_teacher_id'],
         ]);
 
-        return redirect()->route('classes.index')->with('success', 'Class created successfully!');
+        return redirect()->route('classes.show', $classroom)->with('success', 'Class created successfully!');
     }
 
     public function show(Classroom $classroom)
     {
-        $this->authorizeView($classroom);
-        $assignments = $classroom->assignments()->with(['files', 'submissions'])->get();
+        $user = Auth::user();
+        
+        // Pārbauda piekļuvi
+        if (!$user->isAdmin() && 
+            !($user->isTeacher() && ($classroom->assigned_teacher_id === $user->id || $classroom->teacher_id === $user->id)) &&
+            !$classroom->students()->where('user_id', $user->id)->exists()) {
+            abort(403, 'You do not have access to this class.');
+        }
+        
+        $classroom->load('students');
+        $assignments = $classroom->assignments()->with(['files', 'submissions.user'])->get();
         return view('classes.show', compact('classroom', 'assignments'));
     }
 
     public function edit(Classroom $classroom)
     {
-        if (!Auth::user()->isAdmin()) abort(403);
+        $user = Auth::user();
+        // Skolotājs var rediģēt tikai savu klasi
+        if (!$user->isAdmin() && $classroom->assigned_teacher_id !== $user->id && $classroom->teacher_id !== $user->id) {
+            abort(403, 'You can only edit your own classes.');
+        }
+        
         $teachers = \App\Models\User::where('role', 'teacher')->get();
         return view('classes.edit', compact('classroom', 'teachers'));
     }
 
     public function update(Request $request, Classroom $classroom)
     {
-        if (!Auth::user()->isAdmin()) abort(403);
+        $user = Auth::user();
+        if (!$user->isAdmin() && $classroom->assigned_teacher_id !== $user->id) {
+            abort(403, 'You can only update your own classes.');
+        }
 
         $data = $request->validate([
             'name'                => ['required', 'string', 'max:100'],
@@ -79,14 +135,18 @@ class ClassroomController extends Controller
 
         $classroom->update($data);
 
-        return redirect()->route('classes.show', $classroom)->with('success', 'Class updated.');
+        return redirect()->route('classes.show', $classroom)->with('success', 'Class updated successfully.');
     }
 
     public function destroy(Classroom $classroom)
     {
-        if (!Auth::user()->isAdmin()) abort(403);
+        $user = Auth::user();
+        if (!$user->isAdmin()) {
+            abort(403, 'Only admins can delete classes.');
+        }
+        
         $classroom->delete();
-        return redirect()->route('classes.index')->with('success', 'Class deleted.');
+        return redirect()->route('classes.index')->with('success', 'Class deleted successfully.');
     }
 
     public function join(Request $request)
@@ -107,17 +167,6 @@ class ClassroomController extends Controller
 
         $classroom->students()->attach($user->id);
 
-        return redirect()->route('classes.show', $classroom)->with('success', 'Joined class!');
-    }
-
-    private function authorizeView(Classroom $classroom): void
-    {
-        $user = Auth::user();
-
-        if ($user->isAdmin()) return;
-        if ($user->isTeacher() && $classroom->assigned_teacher_id === $user->id) return;
-        if ($user->isStudent() && $classroom->students()->where('user_id', $user->id)->exists()) return;
-
-        abort(403);
+        return redirect()->route('classes.show', $classroom)->with('success', 'Successfully joined the class!');
     }
 }

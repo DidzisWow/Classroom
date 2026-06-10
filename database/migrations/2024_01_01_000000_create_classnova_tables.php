@@ -23,6 +23,7 @@ return new class extends Migration
             Schema::create('classrooms', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('teacher_id')->constrained('users')->cascadeOnDelete();
+                $table->foreignId('assigned_teacher_id')->nullable()->constrained('users')->nullOnDelete();
                 $table->string('name');
                 $table->text('description')->nullable();
                 $table->string('color', 20)->default('#00e5ff');

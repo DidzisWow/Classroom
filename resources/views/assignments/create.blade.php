@@ -9,7 +9,8 @@
     </div>
 
     <div class="form-card">
-        <h1 class="form-card-title">New Assignment</h1>
+        <h1 class="form-card-title">Create New Post</h1>
+        <p class="form-card-sub">Create an assignment or announcement for your students</p>
 
         <form method="POST" action="{{ route('assignments.store') }}" enctype="multipart/form-data" class="auth-form">
             @csrf
@@ -17,16 +18,16 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="type">Type</label>
+                    <label for="type">Post Type</label>
                     <select id="type" name="type" class="{{ $errors->has('type') ? 'is-invalid' : '' }}">
-                        <option value="assignment" {{ old('type') === 'assignment' ? 'selected' : '' }}>Assignment</option>
-                        <option value="announcement" {{ old('type') === 'announcement' ? 'selected' : '' }}>Announcement</option>
+                        <option value="assignment" {{ old('type') === 'assignment' ? 'selected' : '' }}>📝 Assignment (requires submission)</option>
+                        <option value="announcement" {{ old('type') === 'announcement' ? 'selected' : '' }}>📢 Announcement (no submission)</option>
                     </select>
                     @error('type') <span class="error-msg">{{ $message }}</span> @enderror
                 </div>
 
-                <div class="form-group">
-                    <label for="due_date">Due Date <span class="label-opt">(optional)</span></label>
+                <div class="form-group" id="dueDateGroup">
+                    <label for="due_date">Due Date <span class="label-opt">(for assignments)</span></label>
                     <input type="datetime-local" id="due_date" name="due_date" value="{{ old('due_date') }}">
                     @error('due_date') <span class="error-msg">{{ $message }}</span> @enderror
                 </div>
@@ -40,35 +41,54 @@
                     name="title"
                     value="{{ old('title') }}"
                     class="{{ $errors->has('title') ? 'is-invalid' : '' }}"
-                    placeholder="Assignment title"
+                    placeholder="Enter title..."
                     autofocus
                 >
                 @error('title') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
             <div class="form-group">
-                <label for="description">Instructions <span class="label-opt">(optional)</span></label>
+                <label for="description">Description / Instructions</label>
                 <textarea
                     id="description"
                     name="description"
-                    rows="5"
-                    placeholder="Describe the task..."
+                    rows="6"
+                    placeholder="Describe the task or provide instructions..."
                 >{{ old('description') }}</textarea>
                 @error('description') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
             <div class="form-group">
-                <label for="files">Attach Files <span class="label-opt">(optional)</span></label>
-                <input type="file" id="files" name="files[]" multiple>
+                <label for="files">Attach Files <span class="label-opt">(optional, max 20MB per file)</span></label>
+                <input type="file" id="files" name="files[]" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.png,.zip">
+                <small style="color: var(--text-3); font-size: 0.7rem;">You can attach multiple files: PDF, DOC, TXT, JPG, PNG, ZIP</small>
                 @error('files.*') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
             <div class="form-actions">
                 <a href="{{ route('classes.show', $class) }}" class="btn-ghost">Cancel</a>
-                <button type="submit" class="btn-primary">Post Assignment</button>
+                <button type="submit" class="btn-primary">Publish Post</button>
             </div>
         </form>
     </div>
 
 </div>
+
+<script>
+    // Show/hide due date field based on post type
+    const typeSelect = document.getElementById('type');
+    const dueDateGroup = document.getElementById('dueDateGroup');
+    
+    function toggleDueDate() {
+        if (typeSelect.value === 'announcement') {
+            dueDateGroup.style.display = 'none';
+        } else {
+            dueDateGroup.style.display = 'block';
+        }
+    }
+    
+    typeSelect.addEventListener('change', toggleDueDate);
+    toggleDueDate();
+</script>
+
 @endsection

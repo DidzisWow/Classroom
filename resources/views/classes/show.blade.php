@@ -8,13 +8,13 @@
         <div class="class-hero-inner">
             <a href="{{ route('classes.index') }}" class="back-link">← Classes</a>
             <h1 class="class-hero-title">{{ $classroom->name }}</h1>
-            <p class="class-hero-teacher">{{ $classroom->teacher->name ?? 'Unknown teacher' }}</p>
+            <p class="class-hero-teacher">{{ $classroom->assignedTeacher->name ?? $classroom->teacher->name ?? 'Unknown teacher' }}</p>
             <div class="class-hero-meta">
                 <span class="class-code-badge">Code: <strong>{{ $classroom->code }}</strong></span>
                 <span>{{ $classroom->students->count() }} students</span>
             </div>
         </div>
-        @if((auth()->user()->role === 'teacher' && auth()->user()->id === $classroom->teacher_id) || auth()->user()->role === 'admin')
+        @if((auth()->user()->role === 'teacher' && auth()->user()->id === $classroom->assigned_teacher_id) || auth()->user()->role === 'admin')
             <div class="class-hero-actions">
                 <a href="{{ route('assignments.create', ['class_id' => $classroom->id]) }}" class="btn-primary">+ Add Assignment</a>
                 <a href="{{ route('classes.edit', $classroom) }}" class="btn-secondary">Edit Class</a>
@@ -36,6 +36,9 @@
                 <div class="empty-state">
                     <div class="empty-icon">◌</div>
                     <p>No assignments or posts yet.</p>
+                    @if((auth()->user()->role === 'teacher' && auth()->user()->id === $classroom->assigned_teacher_id) || auth()->user()->role === 'admin')
+                        <a href="{{ route('assignments.create', ['class_id' => $classroom->id]) }}" class="btn-primary" style="margin-top: 12px;">+ Create First Assignment</a>
+                    @endif
                 </div>
             @else
                 @foreach($assignments as $item)
@@ -71,7 +74,7 @@
             <div class="sidebar-card">
                 <h3>Students <span class="count-badge">{{ $classroom->students->count() }}</span></h3>
                 <ul class="student-list">
-                    @foreach($classroom->students->take(8) as $student)
+                    @forelse($classroom->students->take(8) as $student)
                         <li class="student-item">
                             @if($student->avatar)
                                 <img src="{{ asset('storage/' . $student->avatar) }}" class="student-avatar" alt="">
@@ -80,12 +83,26 @@
                             @endif
                             <span>{{ $student->name }}</span>
                         </li>
-                    @endforeach
+                    @empty
+                        <li class="student-item">
+                            <span style="color: var(--text-3);">No students enrolled yet</span>
+                        </li>
+                    @endforelse
                     @if($classroom->students->count() > 8)
                         <li class="student-more">+{{ $classroom->students->count() - 8 }} more</li>
                     @endif
                 </ul>
             </div>
+            
+            @if((auth()->user()->role === 'teacher' && auth()->user()->id === $classroom->assigned_teacher_id) || auth()->user()->role === 'admin')
+            <div class="sidebar-card">
+                <h3>Quick Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <a href="{{ route('assignments.create', ['class_id' => $classroom->id]) }}" class="btn-primary" style="justify-content: center;">+ New Assignment</a>
+                    <a href="{{ route('classes.edit', $classroom) }}" class="btn-secondary" style="justify-content: center; text-align: center;">✎ Edit Class</a>
+                </div>
+            </div>
+            @endif
         </aside>
 
     </div>

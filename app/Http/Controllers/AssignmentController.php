@@ -48,25 +48,49 @@ class AssignmentController extends Controller
             }
         }
 
-        return redirect()->route('assignments.show', $assignment)->with('success', 'Assignment posted!');
+        return redirect()->route('assignments.show', $assignment)->with('success', 'Assignment posted successfully!');
     }
 
     public function show(Assignment $assignment)
     {
         $assignment->load(['classroom.teacher', 'classroom.assignedTeacher', 'files', 'submissions.files', 'submissions.user']);
+        
+        // Pārbauda vai lietotājam ir piekļuve šim uzdevumam
+        $user = Auth::user();
+        $classroom = $assignment->classroom;
+        
+        if (!$user->isAdmin() && 
+            !($user->isTeacher() && $classroom->assigned_teacher_id === $user->id) &&
+            !$classroom->students()->where('user_id', $user->id)->exists()) {
+            abort(403, 'You do not have access to this assignment.');
+        }
+        
         return view('assignments.show', compact('assignment'));
     }
 
     public function destroy(Assignment $assignment)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $assignment->classroom->assigned_teacher_id !== $user->id) abort(403);
+        $classroom = $assignment->classroom;
+        
+        if (!$user->isAdmin() && $classroom->assigned_teacher_id !== $user->id) {
+            abort(403, 'You can only delete your own assignments.');
+        }
+        
         $assignment->delete();
-        return redirect()->route('classes.show', $assignment->classroom)->with('success', 'Assignment deleted.');
+        return redirect()->route('classes.show', $assignment->classroom)->with('success', 'Assignment deleted successfully.');
     }
 
     public function submit(Request $request, Assignment $assignment)
     {
+        $user = Auth::user();
+        $classroom = $assignment->classroom;
+        
+        // Pārbauda vai students ir pierakstījies klasē
+        if (!$classroom->students()->where('user_id', $user->id)->exists()) {
+            abort(403, 'You are not enrolled in this class.');
+        }
+        
         $request->validate([
             'files'   => ['required', 'array'],
             'files.*' => ['file', 'max:20480'],
@@ -87,14 +111,14 @@ class AssignmentController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Submitted successfully!');
+        return back()->with('success', 'Assignment submitted successfully!');
     }
 
     private function authorizeTeacher(Classroom $class): void
     {
         $user = Auth::user();
         if (!$user->isAdmin() && (!$user->isTeacher() || $class->assigned_teacher_id !== $user->id)) {
-            abort(403);
+            abort(403, 'You do not have permission to manage this class.');
         }
     }
 }

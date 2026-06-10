@@ -10,9 +10,10 @@
             <p class="page-sub">All your enrolled and created classes</p>
         </div>
         <div class="page-actions">
-            @if(auth()->user()->role === 'admin')
+            @if(auth()->user()->role === 'admin' || auth()->user()->role === 'teacher')
                 <a href="{{ route('classes.create') }}" class="btn-primary">+ New Class</a>
-            @elseif(auth()->user()->role === 'student')
+            @endif
+            @if(auth()->user()->role === 'student')
                 <button class="btn-secondary" onclick="document.getElementById('joinModal').classList.add('open')">Join Class</button>
             @endif
         </div>
@@ -26,8 +27,9 @@
                 <p>Create your first class to get started.</p>
                 <a href="{{ route('classes.create') }}" class="btn-primary">Add Class</a>
             @elseif(auth()->user()->role === 'teacher')
-                <h3>No classes assigned</h3>
-                <p>You haven't been assigned to any classes yet. Contact your admin.</p>
+                <h3>No classes yet</h3>
+                <p>Create your first class to start teaching.</p>
+                <a href="{{ route('classes.create') }}" class="btn-primary">Create Class</a>
             @else
                 <h3>No classes found</h3>
                 <p>Ask your teacher for a class invite code.</p>
