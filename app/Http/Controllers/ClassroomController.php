@@ -122,7 +122,8 @@ class ClassroomController extends Controller
     public function update(Request $request, Classroom $classroom)
     {
         $user = Auth::user();
-        if (!$user->isAdmin() && $classroom->assigned_teacher_id !== $user->id) {
+        // FIX: Pārbauda gan assigned_teacher_id, gan teacher_id
+        if (!$user->isAdmin() && $classroom->assigned_teacher_id !== $user->id && $classroom->teacher_id !== $user->id) {
             abort(403, 'You can only update your own classes.');
         }
 

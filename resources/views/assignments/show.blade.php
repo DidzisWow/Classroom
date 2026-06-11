@@ -23,11 +23,14 @@
                         </div>
                     @endif
                     @if(auth()->user()->role === 'admin' || (auth()->user()->role === 'teacher' && auth()->user()->id === $assignment->classroom->assigned_teacher_id))
-                        <form method="POST" action="{{ route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Delete this assignment?')" style="margin-left:auto">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-danger btn-sm">Delete</button>
-                        </form>
+                        <div style="display: flex; gap: 8px; margin-left: auto;">
+                            <a href="{{ route('assignments.edit', $assignment) }}" class="btn-secondary btn-sm">✎ Edit</a>
+                            <form method="POST" action="{{ route('assignments.destroy', $assignment) }}" onsubmit="return confirm('Delete this assignment?')" style="display: inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
                     @endif
                 </div>
                 <h1 class="assignment-title">{{ $assignment->title }}</h1>
@@ -41,11 +44,11 @@
                     <div class="file-list">
                         <h4>Attached Files</h4>
                         @foreach($assignment->files->where('user_id', $assignment->classroom->assigned_teacher_id ?? $assignment->classroom->teacher_id) as $file)
-                            <a href="{{ asset('storage/' . $file->path) }}" class="file-item" target="_blank">
+                            <div class="file-item">
                                 <span class="file-icon">◧</span>
-                                <span class="file-name">{{ $file->original_name }}</span>
+                                <a href="{{ asset('storage/' . $file->path) }}" class="file-name" target="_blank">{{ $file->original_name }}</a>
                                 <span class="file-size">{{ number_format($file->size / 1024, 1) }} KB</span>
-                            </a>
+                            </div>
                         @endforeach
                     </div>
                 @endif
@@ -95,7 +98,8 @@
                 @php $submission = $assignment->submissions()->where('user_id', auth()->id())->first(); @endphp
 
                 @if($submission)
-                    <div class="submission-status status-submitted">Submitted</div>
+                    <div class="submission-status status-submitted">Submitted ({{ $submission->updated_at->format('M j, H:i') }})</div>
+                    
                     @if($submission->grade !== null)
                         <div class="submission-grade">
                             <span class="grade-value">{{ $submission->grade }}</span>
@@ -105,14 +109,24 @@
                             <p class="grade-feedback">{{ $submission->feedback }}</p>
                         @endif
                     @endif
-                    <div class="file-list">
-                        @foreach($submission->files as $file)
-                            <a href="{{ asset('storage/' . $file->path) }}" class="file-item" target="_blank">
-                                <span class="file-icon">◧</span>
-                                <span class="file-name">{{ $file->original_name }}</span>
-                            </a>
-                        @endforeach
-                    </div>
+                    
+                    @if($submission->files->count())
+                        <div class="file-list">
+                            <h4>Your Files</h4>
+                            @foreach($submission->files as $file)
+                                <div class="file-item">
+                                    <span class="file-icon">◧</span>
+                                    <a href="{{ asset('storage/' . $file->path) }}" class="file-name" target="_blank">{{ $file->original_name }}</a>
+                                    <span class="file-size">{{ number_format($file->size / 1024, 1) }} KB</span>
+                                    <form method="POST" action="{{ route('submissions.delete-file', [$submission, $file]) }}" style="display:inline;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-danger btn-sm" onclick="return confirm('Delete this file?')">✕</button>
+                                    </form>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 @else
                     <div class="submission-status status-missing">Not submitted</div>
                 @endif
@@ -121,10 +135,11 @@
                     @csrf
                     <div class="form-group">
                         <label for="files">Attach files</label>
-                        <input type="file" id="files" name="files[]" multiple>
+                        <input type="file" id="files" name="files[]" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.png,.zip">
+                        <small style="color: var(--text-3); font-size: 0.7rem;">Max 20MB per file</small>
                     </div>
                     <button type="submit" class="btn-primary btn-full">
-                        {{ $submission ? 'Resubmit' : 'Submit' }}
+                        {{ $submission ? 'Update Submission' : 'Submit' }}
                     </button>
                 </form>
             </div>
@@ -135,30 +150,134 @@
         <aside class="assignment-sidebar">
             <div class="sidebar-card">
                 <h3>Submissions <span class="count-badge">{{ $assignment->submissions->count() }}</span></h3>
-                @foreach($assignment->submissions()->with(['user','files'])->get() as $sub)
-                    <div class="submission-row">
-                        <div class="submission-row-head">
-                            <span class="sub-student">{{ $sub->user->name }}</span>
-                            <span class="sub-date">{{ $sub->created_at->format('M j') }}</span>
+                
+                @if($assignment->submissions->isEmpty())
+                    <p style="color: var(--text-3); text-align: center; padding: 20px;">No submissions yet</p>
+                @else
+                    @foreach($assignment->submissions()->with(['user','files'])->get() as $sub)
+                        <div class="submission-row">
+                            <div class="submission-row-head">
+                                <span class="sub-student">{{ $sub->user->name }}</span>
+                                <span class="sub-date">{{ $sub->created_at->format('M j, H:i') }}</span>
+                            </div>
+                            
+                            @if($sub->files->count())
+                                @foreach($sub->files as $file)
+                                    <a href="{{ asset('storage/' . $file->path) }}" class="file-item small" target="_blank">
+                                        <span class="file-icon">◧</span>{{ $file->original_name }}
+                                    </a>
+                                @endforeach
+                            @endif
+                            
+                            <form method="POST" action="{{ route('submissions.grade', $sub) }}" class="grade-form">
+                                @csrf
+                                @method('PATCH')
+                                <input type="number" name="grade" min="0" max="10" step="0.5" value="{{ $sub->grade }}" placeholder="Grade /10">
+                                <input type="text" name="feedback" value="{{ $sub->feedback }}" placeholder="Feedback (optional)">
+                                <button type="submit" class="btn-primary btn-sm">Save</button>
+                            </form>
                         </div>
-                        @foreach($sub->files as $file)
-                            <a href="{{ asset('storage/' . $file->path) }}" class="file-item small" target="_blank">
-                                <span class="file-icon">◧</span>{{ $file->original_name }}
-                            </a>
-                        @endforeach
-                        <form method="POST" action="{{ route('submissions.grade', $sub) }}" class="grade-form">
-                            @csrf
-                            @method('PATCH')
-                            <input type="number" name="grade" min="0" max="10" step="0.5" value="{{ $sub->grade }}" placeholder="Grade /10">
-                            <input type="text" name="feedback" value="{{ $sub->feedback }}" placeholder="Feedback (optional)">
-                            <button type="submit" class="btn-primary btn-sm">Save</button>
-                        </form>
-                    </div>
-                @endforeach
+                    @endforeach
+                @endif
             </div>
         </aside>
         @endif
 
     </div>
 </div>
+
+<style>
+    .file-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--bg-3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+        transition: all var(--transition);
+    }
+    
+    .file-item .file-name {
+        flex: 1;
+        color: var(--text);
+        text-decoration: none;
+    }
+    
+    .file-item .file-name:hover {
+        color: var(--accent);
+    }
+    
+    .file-item .file-size {
+        font-size: 0.75rem;
+        color: var(--text-3);
+    }
+    
+    .btn-danger.btn-sm {
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        background: rgba(248, 113, 113, 0.15);
+        border: 1px solid rgba(248, 113, 113, 0.3);
+    }
+    
+    .btn-danger.btn-sm:hover {
+        background: rgba(248, 113, 113, 0.3);
+    }
+    
+    .btn-secondary.btn-sm {
+        padding: 5px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .submission-row {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .submission-row:last-child {
+        border-bottom: none;
+    }
+    
+    .submission-row-head {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    
+    .sub-student {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .sub-date {
+        font-size: 0.75rem;
+        color: var(--text-3);
+    }
+    
+    .grade-form {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .grade-form input {
+        flex: 1;
+        min-width: 80px;
+        background: var(--bg-3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 10px;
+        color: var(--text);
+        font-size: 0.8rem;
+        outline: none;
+    }
+    
+    .grade-form input:focus {
+        border-color: var(--accent);
+    }
+</style>
+
 @endsection
